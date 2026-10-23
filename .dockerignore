@@ -1,0 +1,13 @@
+.git
+.serena
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.env
+.env.*
+!.env.example
+test.db
+.coverage
+htmlcov

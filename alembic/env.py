@@ -10,7 +10,7 @@ from app.database import Base
 from app.models import *  # noqa: F401, F403
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url.replace("+asyncpg", ""))
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -32,16 +32,20 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations() -> None:
-    from sqlalchemy.engine import create_engine
-    sync_url = settings.database_url.replace("+asyncpg", "")
-    engine = create_engine(sync_url, poolclass=pool.NullPool)
-    with engine.connect() as connection:
-        do_run_migrations(connection)
-    engine.dispose()
+    engine = async_engine_from_config(
+        config.get_section(config.config_ini_section),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+    try:
+        async with engine.connect() as connection:
+            await connection.run_sync(do_run_migrations)
+    finally:
+        await engine.dispose()
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode using a sync driver."""
+    """Run migrations using the application's async driver."""
     asyncio.run(run_async_migrations())
 
 

@@ -1,0 +1,40 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gather_test
+      POSTGRES_PASSWORD: gather_test
+      POSTGRES_DB: postgres
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gather_test -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  redis-test:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  tests:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://gather_test:gather_test@postgres-test:5432/postgres
+      TEST_POSTGRES_URL: postgresql+asyncpg://gather_test:gather_test@postgres-test:5432/postgres
+      REDIS_HOST: redis-test
+      TEST_REDIS_URL: redis://redis-test:6379/0
+      JWT_SECRET_KEY: isolated-test-signing-secret-not-for-deployment
+      DEBUG: "false"
+      PYTHONDONTWRITEBYTECODE: "1"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    command: ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider", "-rs"]

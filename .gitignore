@@ -7,3 +7,6 @@
 /app/services/__pycache__
 /app/schemas/__pycache__
 /app/models/__pycache__
+/.serena
+__pycache__/
+.pytest_cache/

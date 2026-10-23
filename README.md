@@ -1,4 +1,4 @@
-# Gather — Event & Social API
+# Gather: Event & Social API
 
 Gather is an asynchronous REST API that combines event management with a small social graph. Users can create accounts, follow one another, publish posts, join events, and build a feed from followed profiles.
 
@@ -7,6 +7,10 @@ FastAPI exposes interactive documentation automatically after startup:
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+## Status
+
+Alpha, assessed by code review on 2026-10-23. The repository contains routes, services, repositories and auth/event tests. The audit did not run the tests or the PostgreSQL/Redis stack. There is no CI workflow or verified public demo.
+
 ## Implemented features
 
 - Registration and login with JWT access and refresh tokens.
@@ -14,10 +18,10 @@ FastAPI exposes interactive documentation automatically after startup:
 - Event creation, editing, deletion, joining, and leaving.
 - Posts, comments, event filtering, and a feed from followed users.
 - Paginated collection endpoints.
-- Redis caching for event lists, with a graceful fallback when Redis is unavailable.
-- Per-IP rate limits for authentication and content-changing requests.
+- Redis caching for event lists, with fallback on connection errors.
+- Per-IP rate limits for authentication and writes to selected endpoints.
 - Async SQLAlchemy repositories and Alembic migration support.
-- Isolated async tests backed by in-memory SQLite.
+- Async tests backed by the local SQLite file `test.db`, recreated between test cases.
 
 ## Technology
 
@@ -122,11 +126,15 @@ The Swagger UI is the canonical request and response reference because it is gen
 pytest tests/ -v
 ```
 
-Tests replace PostgreSQL with an in-memory SQLite database and reset the schema between test cases. They do not require the Docker services.
+Tests replace the request-session dependency with SQLite at `./test.db` and create/drop its tables between test cases. Run them from a disposable development checkout; do not store useful data in that file. They do not validate PostgreSQL migrations or Redis integration.
+
+The audit did not run tests or install dependencies because there was no project-local Python environment.
 
 ## Production notes
 
 The values in `.env.example` and `docker-compose.yml` are development defaults. Before exposing the service, use unique secrets and passwords, restrict CORS to trusted origins, set `DEBUG=false`, and place the API behind TLS.
+
+Rate limits are held in each application process (`app/middleware/rate_limit.py`), not shared through Redis. Their content-write coverage is limited to the path prefixes listed there, not every authenticated mutation. The Redis fallback catches connection failures, not all cache errors. Startup uses `create_all`; the presence of Alembic files does not mean startup applies migrations.
 
 ## License
 
