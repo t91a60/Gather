@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 import redis.asyncio as aioredis
 from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app.config import settings
 
@@ -19,7 +20,7 @@ async def get_redis() -> aioredis.Redis:
 async def _safe_call(coro):
     try:
         return await coro
-    except RedisConnectionError:
+    except (RedisConnectionError, RedisTimeoutError):
         return None
 
 
@@ -27,7 +28,10 @@ async def cache_get(key: str) -> Optional[Any]:
     r = await get_redis()
     data = await _safe_call(r.get(key))
     if data:
-        return json.loads(data)
+        try:
+            return json.loads(data)
+        except json.JSONDecodeError:
+            return None
     return None
 
 
@@ -51,7 +55,7 @@ async def cache_delete_pattern(pattern: str) -> None:
                 await r.delete(*keys)
             if cursor == 0:
                 break
-        except RedisConnectionError:
+        except (RedisConnectionError, RedisTimeoutError):
             break
 
 

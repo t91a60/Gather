@@ -2,6 +2,7 @@ import time
 from collections import defaultdict
 
 from fastapi import HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
@@ -26,10 +27,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_ip = request.client.host if request.client else "unknown"
         path = request.url.path
 
-        if self._is_auth_endpoint(path):
-            self._check_rate_limit(client_ip, self.auth_requests, settings.rate_limit_auth_per_minute)
-        elif self._is_content_endpoint(path) and request.method in ("POST", "PUT", "PATCH", "DELETE"):
-            self._check_rate_limit(client_ip, self.content_requests, settings.rate_limit_content_per_minute)
+        try:
+            if self._is_auth_endpoint(path):
+                self._check_rate_limit(
+                    client_ip, self.auth_requests, settings.rate_limit_auth_per_minute
+                )
+            elif self._is_content_endpoint(path) and request.method in (
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+            ):
+                self._check_rate_limit(
+                    client_ip,
+                    self.content_requests,
+                    settings.rate_limit_content_per_minute,
+                )
+        except HTTPException as exc:
+            return JSONResponse(
+                status_code=exc.status_code, content={"detail": exc.detail}
+            )
 
         response = await call_next(request)
         return response
